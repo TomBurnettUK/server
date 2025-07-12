@@ -12,32 +12,38 @@ app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
 });
 
-app.get("/healthz", (req, res) => {
+app.get("/api/healthz", (req, res) => {
   res.set("Content-Type", "text/plain");
   res.send("OK");
 });
 
-app.get("/metrics", (req, res) => {
-  res.send(`Hits: ${config.fileserverHits}`);
+app.get("/admin/metrics", (req, res) => {
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(`<html>
+  <body>
+    <h1>Welcome, Chirpy Admin</h1>
+    <p>Chirpy has been visited ${config.fileserverHits} times!</p>
+  </body>
+</html>`);
 });
 
-app.get("/reset", (req, res) => {
+app.get("/admin/reset", (req, res) => {
   config.fileserverHits = 0;
   res.send();
 });
 
 function middlewareLogging(req: Request, res: Response, next: NextFunction) {
   res.on("finish", () => {
-    const statusCode = res.statusCode;
-    if (statusCode !== 200) {
-      console.log(`[NON-OK] ${req.method} ${req.url} - Status: ${statusCode}`);
+    if (res.statusCode !== 200) {
+      console.log(
+        `[NON-OK] ${req.method} ${req.url} - Status: ${res.statusCode}`
+      );
     }
   });
   next();
 }
 
 function middlewareMetricsInc(req: Request, res: Response, next: NextFunction) {
-  console.log(req.url);
   config.fileserverHits += 1;
   next();
 }
