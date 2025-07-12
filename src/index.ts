@@ -4,9 +4,13 @@ import { config } from "./config.js";
 const app = express();
 const PORT = 8080;
 
-app.use(middlewareLogging);
+// Middleware registration
 
+app.use(express.json());
+app.use(middlewareLogging);
 app.use("/app", middlewareMetricsInc, express.static("./src/app"));
+
+// Routes
 
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
@@ -27,10 +31,35 @@ app.get("/admin/metrics", (req, res) => {
 </html>`);
 });
 
-app.get("/admin/reset", (req, res) => {
+app.post("/admin/reset", (req, res) => {
   config.fileserverHits = 0;
   res.send();
 });
+
+app.post("/api/validate_chirp", (req, res) => {
+  const { body }: { body: string } = req.body;
+
+  if (body.length > 140) {
+    return res.status(400).send({ error: "Chirp is too long" });
+  }
+
+  const profanities = ["kerfuffle", "sharbert", "fornax"];
+  const bodyWords = body.split(" ");
+
+  for (let i = 0; i < bodyWords.length; i++) {
+    for (const profanity of profanities) {
+      if (bodyWords[i].toLowerCase() === profanity) {
+        bodyWords[i] = "****";
+      }
+    }
+  }
+
+  const cleanedBody = bodyWords.join(" ");
+
+  return res.status(200).send({ cleanedBody });
+});
+
+// Middleware functions
 
 function middlewareLogging(req: Request, res: Response, next: NextFunction) {
   res.on("finish", () => {
