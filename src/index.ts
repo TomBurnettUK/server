@@ -1,14 +1,23 @@
-import express, { NextFunction, Request, Response } from "express";
-import { config } from "./config.js";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import express from "express";
+import postgres from "postgres";
+import { BadRequestError } from "./api/errors.js";
 import {
-  BadRequestError,
-  ForbiddenError,
-  NotFoundError,
-  UnauthorizedError,
-} from "./errors.js";
+  errorHandler,
+  middlewareLogging,
+  middlewareMetricsInc,
+} from "./api/middleware.js";
+import { config } from "./config.js";
+
+// DB migrations
+
+const migrationClient = postgres(config.db.url, { max: 1 });
+await migrate(drizzle(migrationClient), config.db.migrationConfig);
+
+// Create express app
 
 const app = express();
-const PORT = 8080;
 
 // Middleware registration
 
@@ -17,10 +26,6 @@ app.use(middlewareLogging);
 app.use("/app", middlewareMetricsInc, express.static("./src/app"));
 
 // Routes
-
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
-});
 
 app.get("/api/healthz", (req, res) => {
   res.set("Content-Type", "text/plain");
@@ -32,13 +37,13 @@ app.get("/admin/metrics", (req, res) => {
   res.send(`<html>
     <body>
     <h1>Welcome, Chirpy Admin</h1>
-    <p>Chirpy has been visited ${config.fileserverHits} times!</p>
+    <p>Chirpy has been visited ${config.api.fileServerHits} times!</p>
     </body>
     </html>`);
 });
 
 app.post("/admin/reset", (req, res) => {
-  config.fileserverHits = 0;
+  config.api.fileServerHits = 0;
   res.send();
 });
 
@@ -67,46 +72,8 @@ app.post("/api/validate_chirp", (req, res, next) => {
 
 app.use(errorHandler);
 
-// Middleware functions
+// Listening...
 
-function middlewareLogging(req: Request, res: Response, next: NextFunction) {
-  res.on("finish", () => {
-    if (res.statusCode !== 200) {
-      console.log(
-        `[NON-OK] ${req.method} ${req.url} - Status: ${res.statusCode}`
-      );
-    }
-  });
-  next();
-}
-
-function middlewareMetricsInc(req: Request, res: Response, next: NextFunction) {
-  config.fileserverHits += 1;
-  next();
-}
-
-function errorHandler(
-  err: Error,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  console.log(err.message);
-
-  const errorStatusMap = new Map([
-    [BadRequestError, 400],
-    [UnauthorizedError, 401],
-    [ForbiddenError, 403],
-    [NotFoundError, 404],
-    [Error, 500],
-  ]);
-
-  for (const [ErrorType, status] of errorStatusMap) {
-    if (err instanceof ErrorType) {
-      res.status(status);
-      break;
-    }
-  }
-
-  res.json({ error: err.message });
-}
+app.listen(config.api.port, () => {
+  console.log(`Server is running at http://localhost:${config.api.port}`);
+});
