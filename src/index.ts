@@ -1,5 +1,11 @@
 import express, { NextFunction, Request, Response } from "express";
 import { config } from "./config.js";
+import {
+  BadRequestError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+} from "./errors.js";
 
 const app = express();
 const PORT = 8080;
@@ -24,11 +30,11 @@ app.get("/api/healthz", (req, res) => {
 app.get("/admin/metrics", (req, res) => {
   res.set("Content-Type", "text/html; charset=utf-8");
   res.send(`<html>
-  <body>
+    <body>
     <h1>Welcome, Chirpy Admin</h1>
     <p>Chirpy has been visited ${config.fileserverHits} times!</p>
-  </body>
-</html>`);
+    </body>
+    </html>`);
 });
 
 app.post("/admin/reset", (req, res) => {
@@ -36,11 +42,11 @@ app.post("/admin/reset", (req, res) => {
   res.send();
 });
 
-app.post("/api/validate_chirp", (req, res) => {
+app.post("/api/validate_chirp", (req, res, next) => {
   const { body }: { body: string } = req.body;
 
   if (body.length > 140) {
-    return res.status(400).send({ error: "Chirp is too long" });
+    throw new BadRequestError("Chirp is too long. Max length is 140");
   }
 
   const profanities = ["kerfuffle", "sharbert", "fornax"];
@@ -56,8 +62,10 @@ app.post("/api/validate_chirp", (req, res) => {
 
   const cleanedBody = bodyWords.join(" ");
 
-  return res.status(200).send({ cleanedBody });
+  return res.status(200).json({ cleanedBody });
 });
+
+app.use(errorHandler);
 
 // Middleware functions
 
@@ -75,4 +83,30 @@ function middlewareLogging(req: Request, res: Response, next: NextFunction) {
 function middlewareMetricsInc(req: Request, res: Response, next: NextFunction) {
   config.fileserverHits += 1;
   next();
+}
+
+function errorHandler(
+  err: Error,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  console.log(err.message);
+
+  const errorStatusMap = new Map([
+    [BadRequestError, 400],
+    [UnauthorizedError, 401],
+    [ForbiddenError, 403],
+    [NotFoundError, 404],
+    [Error, 500],
+  ]);
+
+  for (const [ErrorType, status] of errorStatusMap) {
+    if (err instanceof ErrorType) {
+      res.status(status);
+      break;
+    }
+  }
+
+  res.json({ error: err.message });
 }
