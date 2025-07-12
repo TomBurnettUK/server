@@ -3,6 +3,9 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import express from "express";
 import postgres from "postgres";
 import { BadRequestError } from "./api/errors.js";
+import { metricsHandler, resetHandler } from "./api/handlers/admin.js";
+import { postChirpsHandler } from "./api/handlers/chirps.js";
+import { postUsersHandler } from "./api/handlers/users.js";
 import {
   errorHandler,
   middlewareLogging,
@@ -32,22 +35,11 @@ app.get("/api/healthz", (req, res) => {
   res.send("OK");
 });
 
-app.get("/admin/metrics", (req, res) => {
-  res.set("Content-Type", "text/html; charset=utf-8");
-  res.send(`<html>
-    <body>
-    <h1>Welcome, Chirpy Admin</h1>
-    <p>Chirpy has been visited ${config.api.fileServerHits} times!</p>
-    </body>
-    </html>`);
-});
+app.get("/admin/metrics", metricsHandler);
 
-app.post("/admin/reset", (req, res) => {
-  config.api.fileServerHits = 0;
-  res.send();
-});
+app.post("/admin/reset", resetHandler);
 
-app.post("/api/validate_chirp", (req, res, next) => {
+app.post("/api/validate_chirp", (req, res) => {
   const { body }: { body: string } = req.body;
 
   if (body.length > 140) {
@@ -69,6 +61,10 @@ app.post("/api/validate_chirp", (req, res, next) => {
 
   return res.status(200).json({ cleanedBody });
 });
+
+app.post("/api/users", postUsersHandler);
+
+app.post("/api/chirps", postChirpsHandler);
 
 app.use(errorHandler);
 
