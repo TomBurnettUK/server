@@ -2,9 +2,12 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import express from "express";
 import postgres from "postgres";
-import { BadRequestError } from "./api/errors.js";
 import { metricsHandler, resetHandler } from "./api/handlers/admin.js";
-import { postChirpsHandler } from "./api/handlers/chirps.js";
+import {
+  getChirpHandler,
+  getChirpsHandler,
+  postChirpsHandler,
+} from "./api/handlers/chirps.js";
 import { postUsersHandler } from "./api/handlers/users.js";
 import {
   errorHandler,
@@ -39,32 +42,13 @@ app.get("/admin/metrics", metricsHandler);
 
 app.post("/admin/reset", resetHandler);
 
-app.post("/api/validate_chirp", (req, res) => {
-  const { body }: { body: string } = req.body;
-
-  if (body.length > 140) {
-    throw new BadRequestError("Chirp is too long. Max length is 140");
-  }
-
-  const profanities = ["kerfuffle", "sharbert", "fornax"];
-  const bodyWords = body.split(" ");
-
-  for (let i = 0; i < bodyWords.length; i++) {
-    for (const profanity of profanities) {
-      if (bodyWords[i].toLowerCase() === profanity) {
-        bodyWords[i] = "****";
-      }
-    }
-  }
-
-  const cleanedBody = bodyWords.join(" ");
-
-  return res.status(200).json({ cleanedBody });
-});
-
 app.post("/api/users", postUsersHandler);
 
 app.post("/api/chirps", postChirpsHandler);
+
+app.get("/api/chirps", getChirpsHandler);
+
+app.get("/api/chirps/:chirpID", getChirpHandler);
 
 app.use(errorHandler);
 

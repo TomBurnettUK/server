@@ -1,5 +1,9 @@
 import { NextFunction, Request, Response } from "express";
-import { createChirp } from "../../db/queries/chirps.js";
+import {
+  createChirp,
+  fetchAllChirps,
+  fetchChirp,
+} from "../../db/queries/chirps.js";
 import { NewChirp } from "../../db/schema.js";
 import { BadRequestError } from "../errors.js";
 
@@ -13,6 +17,32 @@ export async function postChirpsHandler(
     const validatedChirp = validateChirp(chirp);
     const addedChirp = await createChirp(validatedChirp);
     res.status(201).json(addedChirp);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getChirpsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const chirps = await fetchAllChirps();
+    res.json(chirps);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getChirpHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const chirp = await fetchChirp(req.params.chirpID);
+    res.json(chirp);
   } catch (err) {
     next(err);
   }
