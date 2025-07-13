@@ -8,7 +8,7 @@ import {
   getChirpsHandler,
   postChirpsHandler,
 } from "./api/handlers/chirps.js";
-import { postUsersHandler } from "./api/handlers/users.js";
+import { loginHandler, postUsersHandler } from "./api/handlers/users.js";
 import {
   errorHandler,
   middlewareLogging,
@@ -41,6 +41,8 @@ app.get("/api/healthz", (req, res) => {
 app.get("/admin/metrics", metricsHandler);
 
 app.post("/admin/reset", resetHandler);
+
+app.post("/api/login", loginHandler);
 
 app.post("/api/users", postUsersHandler);
 
